@@ -203,7 +203,6 @@
             }
         }
         
-        /* Анимация */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -240,7 +239,7 @@
     </div>
 
     <script>
-        // Сообщения только для заполненных дней (1-21)
+        // Сообщения для первых 21 дня
         const filledMessages = {
             1: "Нам уже пол года любимая, ты самая лучшая на свете и я ни капли не жалею что 185 дней назад решил нажать лайк в дайвинчике, люблю тебя любимая.",
             2: "Ты делаешь мою жизнь ярче, даже на расстоянии. Люблю тебя солнышко.",
@@ -264,6 +263,9 @@
             20: "Я люблю тебя больше, чем могу выразить словами.",
             21: "Спасибо, что даёшь мне веру в чудо."
         };
+
+        // ⚠️ Дата начала: 11 июля 2025
+        const startDate = new Date(2025, 6, 11); // Месяцы в JS: 0-11 (июль = 6)
         
         const calendarEl = document.getElementById('calendar');
         const messageEl = document.getElementById('message');
@@ -272,11 +274,7 @@
         const percentageEl = document.getElementById('percentage');
         const notificationEl = document.getElementById('notification');
         
-        // Текущая дата (день с момента начала)
-        const startDate = new Date(); // Замените на реальную дату начала
-        startDate.setDate(startDate.getDate() - 1); // Для примера - начали вчера
-        
-        // Вычисляем текущий день (1-185)
+        // Получаем текущий день (1-185)
         function getCurrentDay() {
             const now = new Date();
             const diffTime = now - startDate;
@@ -284,7 +282,42 @@
             return Math.min(Math.max(diffDays, 1), 185);
         }
         
-        // Создаем календарь
+        // Показывает сообщение для дня
+        function showMessage(day) {
+            const dayNum = parseInt(day);
+            
+            document.querySelectorAll('.day').forEach(el => {
+                el.classList.remove('active');
+                if (parseInt(el.dataset.day) === dayNum) {
+                    el.classList.add('active');
+                }
+            });
+            
+            messageEl.textContent = filledMessages[dayNum] || "Сообщение появится позже...";
+            currentDayEl.textContent = day;
+            updateProgress(dayNum);
+        }
+        
+        // Обновляет прогресс-бар
+        function updateProgress(day) {
+            const percent = Math.round((day / 185) * 100);
+            progressBarEl.style.width = percent + '%';
+            percentageEl.textContent = percent + '%';
+        }
+        
+        // Проверяет, не наступил ли новый день
+        function checkNewDay() {
+            const now = new Date();
+            const currentDay = getCurrentDay();
+            const lastDay = localStorage.getItem('lastDay') || 1;
+            
+            if (currentDay > lastDay) {
+                showMessage(currentDay);
+                localStorage.setItem('lastDay', currentDay);
+            }
+        }
+        
+        // Создает календарь
         function createCalendar() {
             calendarEl.innerHTML = '';
             const currentDay = getCurrentDay();
@@ -299,8 +332,6 @@
                     dayEl.classList.add('past');
                 } else if (i > currentDay) {
                     dayEl.classList.add('future');
-                } else {
-                    dayEl.classList.add('active');
                 }
                 
                 if (!filledMessages[i]) {
@@ -308,127 +339,32 @@
                 }
                 
                 dayEl.addEventListener('click', function() {
-                    handleDayClick(this.dataset.day);
+                    const dayNum = parseInt(this.dataset.day);
+                    if (dayNum > currentDay) {
+                        showNotification();
+                    } else {
+                        showMessage(dayNum);
+                    }
                 });
                 
                 calendarEl.appendChild(dayEl);
             }
             
-            // Показываем текущий день при загрузке
-            showCurrentDay(currentDay);
+            showMessage(currentDay);
         }
         
-        // Обработка клика по дню
-        function handleDayClick(day) {
-            const dayNum = parseInt(day);
-            const currentDay = getCurrentDay();
-            
-            if (dayNum > currentDay) {
-                // Будущий день - показываем уведомление
-                showNotification();
-                return;
-            }
-            
-            if (!filledMessages[dayNum]) {
-                // Пустой день
-                messageEl.textContent = "Сообщение появится здесь позже...";
-                return;
-            }
-            
-            showMessage(dayNum);
-        }
-        
-        // Показываем сообщение для дня
-        function showMessage(day) {
-            const dayNum = parseInt(day);
-            
-            // Обновляем классы дней
-            document.querySelectorAll('.day').forEach(el => {
-                el.classList.remove('active');
-                if (parseInt(el.dataset.day) === dayNum) {
-                    el.classList.add('active');
-                }
-            });
-            
-            // Показываем сообщение
-            messageEl.textContent = filledMessages[dayNum];
-            currentDayEl.textContent = day;
-            
-            // Обновляем прогресс
-            updateProgress(dayNum);
-            
-            // Сохраняем последний открытый день
-            localStorage.setItem('lastOpenDay', day);
-        }
-        
-        // Показываем текущий день
-        function showCurrentDay(day) {
-            currentDayEl.textContent = day;
-            updateProgress(day);
-            
-            if (filledMessages[day]) {
-                messageEl.textContent = filledMessages[day];
-            } else {
-                messageEl.textContent = "Сегодняшнее сообщение появится здесь позже...";
-            }
-        }
-        
-        // Обновляем прогресс бар
-        function updateProgress(day) {
-            const percent = Math.round((day / 185) * 100);
-            progressBarEl.style.width = percent + '%';
-            percentageEl.textContent = percent + '%';
-        }
-        
-        // Показываем уведомление
+        // Показывает уведомление
         function showNotification() {
-            notificationEl.textContent = "еще не время:)";
+            notificationEl.textContent = "еще не время :)";
             notificationEl.style.display = 'block';
-            
-            setTimeout(() => {
-                notificationEl.style.display = 'none';
-            }, 1500);
+            setTimeout(() => notificationEl.style.display = 'none', 1500);
         }
         
-        // При загрузке страницы
-        window.addEventListener('load', function() {
-            createCalendar();
-            
-            // Добавляем поддержку свайпов для сообщения
-            let touchStartX = 0;
-            let touchEndX = 0;
-            
-            messageEl.parentElement.addEventListener('touchstart', function(e) {
-                touchStartX = e.changedTouches[0].screenX;
-            }, false);
-            
-            messageEl.parentElement.addEventListener('touchend', function(e) {
-                touchEndX = e.changedTouches[0].screenX;
-                handleSwipe();
-            }, false);
-            
-            function handleSwipe() {
-                const currentDay = getCurrentDay();
-                const lastOpenDay = parseInt(localStorage.getItem('lastOpenDay')) || 1;
-                const day = Math.min(lastOpenDay, currentDay);
-                
-                if (touchEndX < touchStartX - 50) {
-                    // Свайп влево - следующий день
-                    const nextDay = day + 1;
-                    if (nextDay <= currentDay && filledMessages[nextDay]) {
-                        showMessage(nextDay);
-                    }
-                }
-                
-                if (touchEndX > touchStartX + 50) {
-                    // Свайп вправо - предыдущий день
-                    const prevDay = day - 1;
-                    if (prevDay >= 1 && filledMessages[prevDay]) {
-                        showMessage(prevDay);
-                    }
-                }
-            }
-        });
+        // Запускаем календарь
+        createCalendar();
+        
+        // Проверяем новый день каждую минуту
+        setInterval(checkNewDay, 60000);
     </script>
 </body>
 </html>
